@@ -6,15 +6,12 @@ use App\Entity\Books;
 use App\Repository\AuthorRepository;
 use App\Repository\BooksRepository;
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Mapping\Id;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Requirement\Requirement;
-use Symfony\Component\Validator\Constraints\Json;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 
@@ -139,6 +136,10 @@ class BooksController extends AbstractController
             return new JsonResponse(['Sucess' => 'The Book Has Been Delete succesfully'] , Response::HTTP_ACCEPTED);
         }
 
+        /**
+         * 
+         * i still need to modify this shit shit since it still doesn't work for like changing the author
+         */
         #[Route('/edit/{id}', methods:['POST' , 'PUT'] , name:'app_book_edit')]
         public function editBook($id , Request $request): JsonResponse
         {
@@ -147,12 +148,24 @@ class BooksController extends AbstractController
             {
                 return new JsonResponse(['erorr' => 'The Book is not found'], Response::HTTP_NOT_FOUND);
             }
-            $data = json_decode($request->getContent());
-            if(!$data){
-                return new JsonResponse(['eror'=>'No data was inserted'] , Response::HTTP_NOT_FOUND);
+            try {
+                $this->serializer->deserialize(
+                    $request->getContent(), // the fucking information we going to get from your stupid fucking looking ugly bitch ass of a edit
+                    Books::class, // here we specify the class that we dont want to create a new book but to just edit it since you stupid fuck
+                    'json', // here we say we want it as json (input format)
+                    ['object_to_populate' => $book] // here we say just marge it with the already existing book that we have using the specify id we give :)))
+                );
+        
+                $errors = $this->validator->validate($book);
+                if ($errors->count() > 0) {
+                    return new JsonResponse(['errors' => (string) $errors], 422);
+                }
+
+                $this->em->flush();
+            } catch (\JsonException $e) {
+                return new JsonResponse(['error' => 'Invalid JSON'], 400);
             }
-            
-            return new JsonResponse();
+            return new JsonResponse(['sucess' => 'the entity was edited'], 200);
         }
 
 }
