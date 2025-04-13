@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\DTOs\RegisterUserDTO;
+use App\Services\RegisterService;
 use App\Entity\User;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -26,9 +27,10 @@ final class RegistrationController extends AbstractController
         private SerializerInterface $serializer,
         private ValidatorInterface $validator,
         private UserPasswordHasherInterface $passwordHasher,
+        private RegisterService $registerService,
     ){}
     #[Route('/api/register', name: 'app_register' , methods:['POST'])]
-    public function Register(Request $request): JsonResponse
+    public function Register(Request $request)
     {
 
         //* Well her we actially deserializing our Json that we getting its content into DTO
@@ -42,38 +44,25 @@ final class RegistrationController extends AbstractController
         foreach ($errors as $error) {
             $formattedErrors[$error->getPropertyPath()][] = $error->getMessage();
         }
+        return $this->json(['errors' => $formattedErrors] , response::HTTP_BAD_REQUEST);
+    }
+        try {
+            $this->registerService->RegisterUserService($dto);
+        }catch (\Exception $e){
+                    if ($e->getCode() === Response::HTTP_CONFLICT)
+                    {
+                        return $this->json(['error' => $e->getMessage()], $e->getCode());
+                    }
+                    //* And here We are providing a message that says the we have createdd the user _
+                    return $this->json(
+                        ['error' => 'Registration failed. Please try again.'],
+                        Response::HTTP_INTERNAL_SERVER_ERROR
+                    );
+        }
         return $this->json(
-            ['errors' => $formattedErrors],
-            JsonResponse::HTTP_BAD_REQUEST //* and for this one is just the 400
+            ['message' => 'You have been registered successfully!'],
+            Response::HTTP_CREATED
         );
     }
-        //! must confirm that no one has the same email since it's like a unique identity
-    if($this->userRepo->findOneBy(['email' => $dto->email])){
-        return new JsonResponse(['error' => 'the email is already in use'],
-        Response::HTTP_CONFLICT); //* or just tbh write like 409 instead
-    }
-        //* We are creating a user hashing it's password and then flushing the infos
-    $user = new User;
-    $user->setEmail($dto->email);
-    $hashedpassword = $this->passwordHasher->hashPassword(
-        $user,
-        $dto->password
-    );
-    $user->setPassword($hashedpassword);
-
-    try{
-        $this->em->persist($user);
-        $this->em->flush();
-    } catch(\Exception $e){
-        return $this->json(
-            ['error' => 'Registration failed' . $e], 
-            Response::HTTP_INTERNAL_SERVER_ERROR
-        );
-    }
-
-    return new JsonResponse(
-        ['message' => 'You have been Registered Successfully'],
-        201
-    );
-    }
+        
 }

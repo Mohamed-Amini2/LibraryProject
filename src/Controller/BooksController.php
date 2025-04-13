@@ -16,7 +16,7 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 
 #[Route('/api/books', name: 'app_books')]
-class BooksController extends AbstractController
+final class BooksController extends AbstractController
 {
 
     public function __construct(
