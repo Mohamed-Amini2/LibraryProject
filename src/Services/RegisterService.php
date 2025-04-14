@@ -6,6 +6,7 @@ use App\DTOs\RegisterUserDTO;
 use App\Entity\User;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -17,7 +18,8 @@ class RegisterService {
     public function __construct(
     private UserRepository $userRepo ,
     private EntityManagerInterface $em ,
-    private UserPasswordHasherInterface $passwordHasher
+    private UserPasswordHasherInterface $passwordHasher,
+    private LoggerInterface $logger
     ){
 
     }
@@ -26,6 +28,7 @@ class RegisterService {
         
         //! we first check if there is this email already in the database ! ")
         if ($this->userRepo->findOneBy(['email' => $dto->email])){
+            $this->logger->warning('The Email is Already in use' , ['email' => $dto->email]);
             return new \Exception('The Email is Already in use' , Response::HTTP_CONFLICT);
         }
 
@@ -38,8 +41,10 @@ class RegisterService {
         try {
             $this->em->persist($user);
             $this->em->flush();
+            $this->logger->info('User Has Been Registered' , ['user' => $user]);
 
         } catch(\Exception $e){
+            $this->logger->warning('Registration Failed', ['Error' => $e->getMessage()]);
             throw new \Exception('Registration Failed ' . $e->getMessage() , Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
