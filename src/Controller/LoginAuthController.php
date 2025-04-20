@@ -61,6 +61,8 @@ final class LoginAuthController extends AbstractController {
     {
         $eventDispatcher->dispatch(new LogoutEvent($request, $tokenStorage->getToken()));
 
+        dd($tokenStorage->getToken());
+
         return new JsonResponse(['Message' => 'You have been logged out'] , Response::HTTP_OK);
     }
 }

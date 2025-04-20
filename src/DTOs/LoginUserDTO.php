@@ -2,7 +2,6 @@
 
 namespace App\DTOs;
 
-use App\Repository\UserRepository;
 use Symfony\Component\Validator\Constraints as ASSERT;
 
 class LoginUserDTO{
