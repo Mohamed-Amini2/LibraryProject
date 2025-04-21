@@ -123,7 +123,7 @@ final class BooksController extends AbstractController
                     'json'
                 );
 
-                $errors = $this->validator->validate($dto, groups:['create']);
+                $errors = $this->validator->validate($dto, groups:['update']);
                 if ($errors->count() > 0 ){
                     return $this->json($errors , Response::HTTP_BAD_REQUEST);
                 }
