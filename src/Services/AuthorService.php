@@ -8,11 +8,15 @@ use App\Repository\AuthorRepository;
 use App\Repository\BooksRepository;
 use DateTime;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\Validator\Constraints\Date;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class AuthorService {
 
-    public function __construct(private AuthorRepository $authorRepo , private EntityManagerInterface $em , private BooksRepository $bookRepo , private AuthorDTO $dto)
+    public function __construct(
+    private AuthorRepository $authorRepo ,
+    private EntityManagerInterface $em ,
+    private BooksRepository $bookRepo ,
+    private AuthorDTO $dto)
     {}
 
     private function FormateAuthor(Author $author){
@@ -61,8 +65,53 @@ class AuthorService {
         return $this->FormateAuthor($author);
     }
 
-    public function EditAuthor(){
+    public function EditAuthorById(int $id , AuthorDTO $dto): array
+    {
+        $author = $this->authorRepo->find($id);
 
+        if(!$author){
+            throw new NotFoundHttpException("The Author($id) that you Want To Edit is not found");
+        }
+        if($dto->firstName !== null) $author->setFirstName($dto->firstName);
+        if($dto->lastName !== null) $author->setLastName($dto->lastName);
+        if($dto->yearOfbirth !== null) $author->setYearOfBirth(new \DateTime($dto->yearOfbirth));
+        if($dto->biography !== null ) $author->setBiography($dto->biography);
+        if($dto->authorImage !== null) $author->setAuthorImage($dto->authorImage);
+        if($dto->bookIds !== null){
+            $this->UpdateAuthorBooks($author , $dto->bookIds);
+        }
+
+        $this->em->flush();
+
+        return $this->FormateAuthor($author);
+    }
+
+    public function     UpdateAuthorBooks(Author $author, array $newBooksIds): void
+    {
+        $currentBookCollection = $author->getBooks();
+        $currentBooksIds = [];
+        foreach ($currentBookCollection as $Book){
+            $currentBooksIds[] = $Book->getId();
+        }
+
+        $toRemove = array_diff($currentBooksIds, $newBooksIds);
+        $toAdd = array_diff($newBooksIds , $currentBooksIds);
+
+        foreach($toRemove as $bookId){
+            $book = $this->bookRepo->find($bookId);
+            if($book){
+                $author->removeBook($book);
+            }
+        }
+
+
+        foreach($toAdd as $bookId){
+            $book = $this->bookRepo->find($bookId);
+            if(!$book){
+                throw new NotFoundHttpException("The Book With This Id($bookId) is not found");
+            }
+            $author->addBook($bookId);
+        }
     }
     
 
@@ -75,7 +124,25 @@ class AuthorService {
 
     public function DeleteAuthorById(int $id)
     {
+        $author = $this->authorRepo->find($id);
 
+        if (!$author){
+            throw new NotFoundHttpException("The Author($id) that you Want To delete is not found");
+        }
+        
+        $this->em->remove($author);
+        $this->em->flush();
+    }
+
+    public function GetAuthorById(int $id): array
+    {
+        $author = $this->authorRepo->find($id);
+
+        if (!$author){
+            throw new NotFoundHttpException("Well this Author($id) Is Not Found :(");
+        }
+
+        return $this->FormateAuthor($author);
     }
     
 }

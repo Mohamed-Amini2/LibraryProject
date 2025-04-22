@@ -9,6 +9,9 @@ use App\Repository\BooksRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
+
+//! This BookService  Really neeeds An Update Specially In The Edit Not Efficent Enough And It So Shit Tbh But meh
+
 class BookService{
 
     public function __construct(private AuthorRepository $authorRepo , private EntityManagerInterface $em , private BooksRepository $bookRepo)

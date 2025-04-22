@@ -15,6 +15,8 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
 
+//Todo:: Remvoing this shitty shit so that it can be comaptible with the Service DTO AND CONTROLLER structure ) 
+
 #[Route('/api/authors', name: 'app_author')]
 final class AuthorController extends AbstractController
 {
