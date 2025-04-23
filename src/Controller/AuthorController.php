@@ -2,13 +2,14 @@
 
 namespace App\Controller;
 
-use App\Entity\Author;
+use App\DTOs\AuthorDTO;
 use App\Repository\AuthorRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 use App\Repository\BooksRepository;
+use App\Services\AuthorService;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -21,102 +22,109 @@ use Symfony\Component\Routing\Attribute\Route;
 final class AuthorController extends AbstractController
 {
     public function __construct(       
-    private BooksRepository $BooksRepo,
-    private AuthorRepository $AuthorRepo,
-    private EntityManagerInterface $em,
     private SerializerInterface $serializer,
-    private ValidatorInterface $validator)
+    private ValidatorInterface $validator,
+    private AuthorService $authorService)
     {
     }
 
     #[Route('/', name: 'app_author_all' , methods:['GET'])]
-    public function Authors(): JsonResponse
+    public function ShowAllAuthors()
     {
-        $authors = $this->AuthorRepo->findAll();
+        try {
+            $authors = $this->authorService->GetAllAuthors();
 
-        if(!$authors){
-            return new JsonResponse(['error' => 'The Author not found '] , Response::HTTP_NOT_FOUND);
+            return $this->json($authors, Response::HTTP_OK);
         }
-
-        foreach ($authors as $author){
-
-            $bookTitles = [];
-            foreach($author->getBooks() as $Books){
-                $bookTitles[] = $Books->getTitle();
-            }
-            $authorData = [
-                'id' => $author->getId(),
-                'FirstName' => $author->getFirstName(),
-                'LastName' => $author->getLastName(),
-                'Books' => $bookTitles,
-            ];
+        catch(\Exception $e){
+            return $this->json(['Error' => $e->getMessage()] , Response::HTTP_BAD_REQUEST);
         }
-
-        return new JsonResponse($authorData , Response::HTTP_OK);
+        catch(\InvalidArgumentException $e){
+            return $this->json(['error' => $e->getMessage()] , Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
     #[Route('/{id}' , methods:['GET'] , name: 'app_author_showbyid')]
-    public function showbyId($id): JsonResponse 
+    public function showbyId(int $id): JsonResponse 
     {
-        $author = $this->AuthorRepo->find($id);
-        if(!$author){
-            return new JsonResponse(['error'=> 'this Author is not found'], Response::HTTP_NOT_FOUND);
-        }
-        $bookTitles = [];
-        foreach($author->getBooks() as $Books){
-            $bookTitles[] = $Books->getTitle();
-        }
+        try{
+            $author = $this->authorService->GetAuthorById($id);
 
-        
-        $authorData = [
-            'id' => $author->getId(),
-            'FirstName' => $author->getFirstName(),
-            'LastName' => $author->getLastName(),
-            'Books' => $bookTitles,
-        ];        
-        return new JsonResponse($authorData , Response::HTTP_OK);
+            return $this->json($author , Response::HTTP_OK);
+        }
+        catch(\Exception $e){
+            return $this->json(['Error' => $e->getMessage()] , Response::HTTP_BAD_REQUEST);
+        }
+        catch(\InvalidArgumentException $e){
+            return $this->json(['error' => $e->getMessage()] , Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
-    /**
-     * @param is the fucking $data and the fucking $author
-     * 
-     * here we do the POST or ADD author
-     */
     #[Route('/delete/{id}' , methods:['DELETE'] , name:'app_author_delete')]
-    public function deleteAuthor($id): JsonResponse
+    public function deleteAuthor(int $id)
     {
-        $author = $this->AuthorRepo->find($id);
-        if(!$author){
-            return new JsonResponse(['error' => 'The Author Was not Found To Delete'],Response::HTTP_NOT_FOUND);
+        try {
+            $this->authorService->DeleteAuthorById($id);
+
+            return $this->json(['Message' => "The Author Has been Deleted Successfully."], Response::HTTP_NO_CONTENT);
         }
-
-        $this->em->remove($author);
-        $this->em->flush();
-
-        return new JsonResponse(['Sucess' => 'The Author Was Succesfuly Delete'], Response::HTTP_OK);
+        catch(\Exception $e){
+            return $this->json(['Error' => $e->getMessage()] , Response::HTTP_BAD_REQUEST);
+        }
+        catch(\InvalidArgumentException $e){
+            return $this->json(['error' => $e->getMessage()] , Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
     #[Route('/edit/{id}' , methods:['PATCH'] , name: 'app_author_edit')]
-    public function editauthor($id , Request $request): JsonResponse
+    public function editauthor(int $id, Request $request)
     {
-        $author = $this->AuthorRepo->find($id);
-        if(!$author){
-            return new JsonResponse(['error' => 'The Author Was not Found To Delete'],Response::HTTP_NOT_FOUND);
-        }
-
         try {
-            $this->serializer->deserialize(
+            $dto = $this->serializer->deserialize(
                 $request->getContent(),
-                Author::class,
-                'json',
-                ['object_to_populate' => $author]
+                AuthorDTO::class,
+                'json'
             );
 
-        $this->em->flush();
-        }catch(\JsonException $e) { 
-            return new JsonResponse(['error' => 'Invalid JSON'], 400);
-        }
+            $errors = $this->validator->validate($dto , groups:['update']);
+            if($errors->count() > 0){
+                return $this->json($errors , Response::HTTP_BAD_REQUEST);
+            }
 
-        return new JsonResponse($author , 200);
+            $author = $this->authorService->EditAuthorById($id, $dto);
+            return $this->json($author ,Response::HTTP_OK);
+        }
+        catch(\Exception $e){
+            return $this->json(['Error' => $e->getMessage()] , Response::HTTP_BAD_REQUEST);
+        }
+        catch(\InvalidArgumentException $e){
+            return $this->json(['error' => $e->getMessage()] , Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    #[Route('/addAuthor' , methods:['POST'] , name: 'app_author_add')]
+    public function AddingAuthor(Request $request):JsonResponse
+    {
+        try { 
+            $dto = $this->serializer->deserialize(
+                $request->getContent(),
+                AuthorDTO::class,
+                'json'
+            );
+            $errors = $this->validator->validate($dto, groups:['create']);
+            if($errors->count() > 0) {
+                return $this->json($errors , Response::HTTP_BAD_REQUEST);
+            }
+
+            $author = $this->authorService->AddAuthor($dto);
+            
+            return $this->json($author, Response::HTTP_OK);
+        }
+        catch(\Exception $e){
+            return $this->json(['Error' => $e->getMessage()] , Response::HTTP_BAD_REQUEST);
+        }
+        catch(\InvalidArgumentException $e){
+            return $this->json(['error' => $e->getMessage()] , Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 }

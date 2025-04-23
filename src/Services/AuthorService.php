@@ -10,6 +10,9 @@ use DateTime;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
+
+//! This Author Service Really neeeds An Update Specially In The Edit Not Efficent Enough 
+
 class AuthorService {
 
     public function __construct(
@@ -21,6 +24,8 @@ class AuthorService {
 
     private function FormateAuthor(Author $author){
 
+        $FormatedBooks = [];
+        
         foreach($author->getBooks() as $book){
             $FormatedBooks[] =
             [
@@ -56,6 +61,9 @@ class AuthorService {
             foreach($dto->bookIds as $bookId)
             {
                 $book = $this->bookRepo->find($bookId);
+                if (!$book){
+                    throw new NotFoundHttpException("Book $bookId not found");
+                }
                 $author->addBook($book);
             }
         }
@@ -110,7 +118,7 @@ class AuthorService {
             if(!$book){
                 throw new NotFoundHttpException("The Book With This Id($bookId) is not found");
             }
-            $author->addBook($bookId);
+            $author->addBook($book);
         }
     }
     
@@ -119,7 +127,7 @@ class AuthorService {
     {
         $authors = $this->authorRepo->findAll();
 
-        return array_map([$this , 'FormatedAuthor'] , $authors);
+        return array_map([$this , 'FormateAuthor'] , $authors);
     }
 
     public function DeleteAuthorById(int $id)

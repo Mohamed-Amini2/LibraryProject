@@ -28,7 +28,8 @@ class Author
     /**
      * @var Collection<int, Books>
      */
-    #[ORM\OneToMany(targetEntity: Books::class, mappedBy: 'author')]
+    #[ORM\OneToMany(targetEntity: Books::class, mappedBy: 'author' , 
+    orphanRemoval: true)]
     private Collection $Books;
 
     #[ORM\Column(type: Types::TEXT)]
@@ -94,7 +95,7 @@ class Author
     public function addBook(Books $book): static
     {
         if (!$this->Books->contains($book)) {
-            $this->Books->add($book);
+            $this->Books[] = $book;
             $book->setAuthor($this);
         }
 
